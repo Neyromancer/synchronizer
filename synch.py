@@ -1,24 +1,62 @@
 import argparse
 from pathlib import Path
-from filecmp import dircmp
+from filecmp import dircmp, cmp
 
 def daemonize():
 	print("daemonized")	
 
-def cmp_src_dst(args):
+"""
+	compare files
+"""
+def cmp_files(f1, f2):
+	p1 = Path(str(f1)).stat()
+	p2 = Path(str(f2)).stat()
+	if p1.st_mtime == p2.st_mtime and \
+		p1.st_size == p2.st_size:
+		return True
+	return False
+
+"""
+	in case of this program working
+	as a daemon exclude updated files
+	from checking for sometime as
+	otherwise we can fall into infinite
+	recursion OR find the way to copy
+	file from srd dir to dst dir
+	with exact parameters
+"""
+def update_dirs(f1, f2):
+	p1 = Path(str(f1)).stat()
+	p2 = Path(str(f2)).stat()
+	if (p1.st_mtime > p2.st_mtime or \
+		p1.st_size > p2.st_size) or \
+		(p1.st_mtime > p2.st_mtime and \
+		p1.st_size > p2.st_size):
+		print("file %s is copied into %s" % (str(f1), str(Path(str(f2)).parents[0])))
+	else:
+		print("file %s is copied into %s" % (str(f2), str(Path(str(f1)).parents[0])))
+	
+
+def cmp_src_dst(crnt_dir, args):
 	for i in args:
-		print(i)
+		if Path(i).exists():
+			print(i)
 
 def process_src_flg(args):
+	crnt_dir = Path.cwd()
 	if len(args) > 1:
-		cmp_src_dst(args)
+		cmp_src_dst(crnt_dir, args)
 	else:
-		crnt_dir = Path.cwd()
-		dcmp = dircmp(crnt_dir, args)
-		print ("files in %s are" % str(crnt_dir))
-		print("files in current dir is %s" % dcmp.left_only)
-		#for f in dcmp.left_list:
-			#print(f)
+		if Path(args[0]).exists() and Path(crnt_dir).exists():
+			if Path(args[0]).is_dir():
+				dcmp = dircmp(str(crnt_dir), args[0])
+				for name in dcmp.left_only:
+					print("file name is %s" % name)
+			elif Path(args[0]).is_file():
+				print("path %s is file" % (args[0]))
+				for fname in Path(str(crnt_dir)).iterdir():
+					if not cmp_files(args[0], fname):
+						update_dirs(args[0], fname)
 		
 
 def parse_commands():
@@ -64,7 +102,8 @@ def parse_commands():
 	parser.add_argument("-r", "--remove-dirs", help="remove default dirs", nargs='*', metavar="DEFAULT_DIRS")
 	parser.add_argument("-c", "--config-include", help="add provided path with set options to configuration file", nargs='*', metavar="COMMAND")
 	args = parser.parse_args()
-	process_src_flg(args.src)
+	if args.src:
+		process_src_flg(args.src)
 
 def main():
 	parse_commands()
