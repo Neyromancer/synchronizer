@@ -8,56 +8,134 @@ def daemonize():
 """
 	compare files
 """
-def cmp_files(f1, f2):
-	p1 = Path(str(f1)).stat()
-	p2 = Path(str(f2)).stat()
-	if p1.st_mtime == p2.st_mtime and \
-		p1.st_size == p2.st_size:
+def is_eql_objs(f1, f2):
+	file_name1 = Path(f1).name
+	file_name2 = Path(f2).name
+	if file_name1 != file_name2:
+		return False
+
+	stat_p1 = Path(str(f1)).stat()
+	stat_p2 = Path(str(f2)).stat()
+	if stat_p1.st_mtime == stat_p2.st_mtime and \
+		stat_p1.st_size == stat_p2.st_size:
 		return True
+	return False
+
+
+def find(src_obj, dst_dir):
+	for name in dst_dir.iterdir():
+		if src_obj == name:
+			return True
 	return False
 
 """
 	in case of this program working
 	as a daemon exclude updated files
-	from checking for sometime as
+	from checking for sometimes as
 	otherwise we can fall into infinite
 	recursion OR find the way to copy
 	file from srd dir to dst dir
 	with exact parameters
 """
-def update_dirs(f1, f2):
-	p1 = Path(str(f1)).stat()
-	p2 = Path(str(f2)).stat()
-	if (p1.st_mtime > p2.st_mtime or \
-		p1.st_size > p2.st_size) or \
-		(p1.st_mtime > p2.st_mtime and \
-		p1.st_size > p2.st_size):
-		print("file %s is copied into %s" % (str(f1), str(Path(str(f2)).parents[0])))
+#PosixPath dst_pth
+#PosizPath src_pth
+def update_files(dst_pth, src_pth):
+	st_dst = Path(str(dst_pth)).stat()
+	st_src = Path(str(src_pth)).stat()
+	if (st_dst.st_mtime > st_src.st_mtime or \
+		st_dst.st_size > st_src.st_size) or \
+		(st_dst.st_mtime > st_src.st_mtime and \
+		st_dst.st_size > st_src.st_size):
+		print("file %s is copied into %s" % (str(dst_pth), str(Path(str(src_pth)).parents[0])))
 	else:
-		print("file %s is copied into %s" % (str(f2), str(Path(str(f1)).parents[0])))
-	
+		print("file %s is copied into %s" % (str(src_pth), str(Path(str(dst_pth)).parents[0])))
 
-def cmp_src_dst(crnt_dir, args):
-	for i in args:
-		if Path(i).exists():
-			print(i)
 
+#PosixPath dst_pth
+#PosizPath src_pth
+def cpy_dirs(dst_pth, src_pth):
+	dst_pth.mkdir(exist_ok=False)
+	process_path(str(dst_pth),str(src_pth))
+
+#PosixPath dst_pth
+#PosizPath src_pth
+def cpy_files(dst_pth, src_pth):
+	dst_pth.touch(exist_ok=False)
+	wrt_str = Path(src_pth).read_bytes()
+	dst_pth.write_bytes(wrt_str)
+
+
+#string dst
+#string src
+def cpy_objs(dst, src):
+	dst_pth = Path(dst).joinpath(Path(src).name)
+	if Path(src).is_dir():
+		cpy_dirs(dst_pth, src)
+	elif Path(src).is_file():
+		cpy_files(dst_pth, src)
+
+def process_pth_list(args):
+	for i in range(1, len(args)):
+		process_path(args[i], args[0])
+
+"""
+	def process_objs(string: dst_pth, string src_pth, list: pth_list, bool: is_cpy)
+"""
+def process_objs(dst_pth, src_pth, pth_list, is_cpy):
+	for name in pth_list:
+		full_src_pth = Path(src_pth).joinpath(name)
+		if is_cpy:
+			cpy_objs(dst_pth, full_src_pth)
+		else:
+			full_dst_pth = Path(dst_pth).joinpath(name)
+			process_path(str(full_dst_pth), str(full_src_pth))
+
+#string dst_pth
+#string src_pth
+def process_path(dst_pth, src_pth):
+	if Path(src_pth).exists() and Path(dst_pth).exists():
+			if Path(src_pth).is_dir():
+				dcmp = dircmp(dst_pth, src_pth)
+				is_cpy = True
+				if len(dcmp.right_only):
+					process_objs(dst_pth, src_pth, dcmp.right_only, is_cpy)
+				if len(dcmp.left_only):
+					process_objs(dst_pth, src_pth, dcmp.left_only, is_cpy)
+				if len(dcmp.common):
+					is_cpy = False
+					process_objs(dst_pth, src_pth, dcmp.common, is_cpy)
+			elif Path(src_pth).is_file():
+				if Path(dst_pth).is_dir():
+					if not find(src_pth, dst_pth):
+						cpy_objs(dst_pth, src_pth)
+					else:
+						for fname in Path(dst_pth).iterdir():
+							if not is_eql_objs(src_pth, fname):
+								update_files(src_pth, fname)
+				else:
+					if not is_eql_objs(src_pth, dst_pth):
+						update_files(src_pth, dst_pth)
+					else:
+						print("Nothing to synchronize. Everything is already synchronized")
+
+
+"""
+	function defines case with src path fed.
+	src path compared with current dir
+	def process_src_flg(list: args)
+"""
 def process_src_flg(args):
-	crnt_dir = Path.cwd()
 	if len(args) > 1:
-		cmp_src_dst(crnt_dir, args)
+		process_pth_list(args)
 	else:
-		if Path(args[0]).exists() and Path(crnt_dir).exists():
-			if Path(args[0]).is_dir():
-				dcmp = dircmp(str(crnt_dir), args[0])
-				for name in dcmp.left_only:
-					print("file name is %s" % name)
-			elif Path(args[0]).is_file():
-				print("path %s is file" % (args[0]))
-				for fname in Path(str(crnt_dir)).iterdir():
-					if not cmp_files(args[0], fname):
-						update_dirs(args[0], fname)
-		
+		crnt_dir = Path.cwd()
+		process_path(str(crnt_dir), args[0])	
+
+#def process_dest_flg(list: args)
+def process_dest_flg(args):
+	crnt_dir = Path.cwd()
+	args.insert(0,str(crnt_dir))
+	process_pth_list(args)
 
 def parse_commands():
 	parser = argparse.ArgumentParser(prog="synch", 
@@ -104,6 +182,8 @@ def parse_commands():
 	args = parser.parse_args()
 	if args.src:
 		process_src_flg(args.src)
+	elif args.dest:
+		process_dest_flg(args.dest)
 
 def main():
 	parse_commands()
