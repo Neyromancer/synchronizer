@@ -141,6 +141,7 @@ def parse_commands():
 	parser = argparse.ArgumentParser(prog="synch", 
 																	description="%(prog)s - remote (and local) object-synchronizer tool", 
 																	usage="%(prog)s [OPTION] [SRC_PATH] [DEST_PATH]")
+	parser.add_argument("synchcurrdir", nargs='*')
 	parser.add_argument("-v", "--verbose", help="increase verbosity", 
 											action="store_true")
 	parser.add_argument("-q", "--quiet", help="suppress non-error messages", 
@@ -184,6 +185,8 @@ def parse_commands():
 		process_src_flg(args.src)
 	elif args.dest:
 		process_dest_flg(args.dest)
+	elif args.synchcurrdir:
+		process_src_flg(args.synchcurrdir)
 
 def main():
 	parse_commands()
