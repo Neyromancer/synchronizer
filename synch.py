@@ -1,6 +1,22 @@
-import argparse
+import argparse, textwrap
 from pathlib import Path
 from filecmp import dircmp, cmp
+PROG_VERSION = 1.00
+VERBOSE = False
+QUIET = False
+
+"""
+class VersionAction(argparse.Action):
+	def __init__(self, option_strings, dest, nargs=None, **kwargs):
+#		if nargs is not None:
+#			raise ValueError("nargs not allowed")
+		super(VersionAction, self).__init__(option_strings, dest, **kwargs)
+	def __call__(self, parser, namespace, version, option_string=None):
+		print("parser is %s" % parser)
+		print("namespace is %s" % namespace)
+		#print("values is %s " % values)
+		setattr(namespace, version, self.dest)
+"""
 
 def daemonize():
 	print("daemonized")	
@@ -9,6 +25,7 @@ def daemonize():
 	compare files
 """
 def is_eql_objs(f1, f2):
+	global VERBOSE
 	file_name1 = Path(f1).name
 	file_name2 = Path(f2).name
 	if file_name1 != file_name2:
@@ -18,7 +35,12 @@ def is_eql_objs(f1, f2):
 	stat_p2 = Path(str(f2)).stat()
 	if stat_p1.st_mtime == stat_p2.st_mtime and \
 		stat_p1.st_size == stat_p2.st_size:
+		if VERBOSE:
+			print("file system objects: \n{} and \n{} are equal".format(file_name1, file_name2))
 		return True
+
+		if VERBOSE:
+			print("file system objects: \n{} and \n{} are not equal".format(file_name1, file_name2))
 	return False
 
 
@@ -29,12 +51,12 @@ def find(src_obj, dst_dir):
 	return False
 
 """
-	in case of this program working
+	in case of this program is working
 	as a daemon exclude updated files
 	from checking for sometimes as
 	otherwise we can fall into infinite
 	recursion OR find the way to copy
-	file from srd dir to dst dir
+	file from src dir to dst dir
 	with exact parameters
 """
 #PosixPath dst_pth
@@ -46,15 +68,19 @@ def update_files(dst_pth, src_pth):
 		st_dst.st_size > st_src.st_size) or \
 		(st_dst.st_mtime > st_src.st_mtime and \
 		st_dst.st_size > st_src.st_size):
-		print("file %s is copied into %s" % (str(dst_pth), str(Path(str(src_pth)).parents[0])))
+			if not QUIET:
+				print("file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent))
 	else:
-		print("file %s is copied into %s" % (str(src_pth), str(Path(str(dst_pth)).parents[0])))
+		if not QUIET:
+			print("file {} is copied into {}".format(Path(src_pth).name, Path(str(dst_pth)).parent))
 
 
 #PosixPath dst_pth
 #PosizPath src_pth
 def cpy_dirs(dst_pth, src_pth):
 	dst_pth.mkdir(exist_ok=False)
+	if VERBOSE:
+		print("directory {} was created in destination path {}".format(dst_pth.name, dst_pth.parent))
 	process_path(str(dst_pth),str(src_pth))
 
 #PosixPath dst_pth
@@ -63,6 +89,8 @@ def cpy_files(dst_pth, src_pth):
 	dst_pth.touch(exist_ok=False)
 	wrt_str = Path(src_pth).read_bytes()
 	dst_pth.write_bytes(wrt_str)
+	if VERBOSE:
+		print("datum from file {} were copied into file {}".format(src_pth, dst_pth))
 
 
 #string dst
@@ -138,9 +166,15 @@ def process_dest_flg(args):
 	process_pth_list(args)
 
 def parse_commands():
+	global PROG_VERSION
+	global VERBOSE
+	global QUIET
+	str_v = "v{:0.2f} \nThis is free software: you are free to change and redistribute it. \nThere is NO WARRANTY, to the extent permitted by law. \n\nWritten by Dmitry Kormulev.".format(PROG_VERSION)
+
 	parser = argparse.ArgumentParser(prog="synch", 
 																	description="%(prog)s - remote (and local) object-synchronizer tool", 
-																	usage="%(prog)s [OPTION] [SRC_PATH] [DEST_PATH]")
+																	usage="%(prog)s [OPTION] [SRC_PATH] [DEST_PATH]",
+																	formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument("synchcurrdir", nargs='*')
 	parser.add_argument("-v", "--verbose", help="increase verbosity", 
 											action="store_true")
@@ -153,8 +187,9 @@ def parse_commands():
 
 	parser.add_argument("--no-recursive", help="turn off dir's recursive parsing",
 											action="store_true")
-	parser.add_argument("--version", help="print version",
-											action="version", version="%(prog)s v1.0")
+
+	parser.add_argument("--version", help="output version information and exit", action="version", version="%(prog)s " + str_v)
+
 	parser.add_argument("-d", "--dest", help="set destination dirs/files",
 											nargs='*')
 	parser.add_argument("-s", "--src", help="set source dirs/files",
@@ -181,6 +216,13 @@ def parse_commands():
 	parser.add_argument("-r", "--remove-dirs", help="remove default dirs", nargs='*', metavar="DEFAULT_DIRS")
 	parser.add_argument("-c", "--config-include", help="add provided path with set options to configuration file", nargs='*', metavar="COMMAND")
 	args = parser.parse_args()
+	if args.verbose:
+		VERBOSE = True
+		QUIET = False
+	elif args.quiet:
+		QUIET = True
+		VERBOSE = False
+
 	if args.src:
 		process_src_flg(args.src)
 	elif args.dest:
