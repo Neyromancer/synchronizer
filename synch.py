@@ -19,10 +19,13 @@ class VersionAction(argparse.Action):
 """
 
 def daemonize():
-	print("daemonized")	
+	if not QUIET:
+		print("daemonized")	
 
 """
 	compare files
+	string: f1
+	string: f2
 """
 def is_eql_objs(f1, f2):
 	global VERBOSE
@@ -31,22 +34,26 @@ def is_eql_objs(f1, f2):
 	if file_name1 != file_name2:
 		return False
 
-	stat_p1 = Path(str(f1)).stat()
-	stat_p2 = Path(str(f2)).stat()
+	stat_p1 = Path(f1).stat()
+	stat_p2 = Path(f2).stat()
 	if stat_p1.st_mtime == stat_p2.st_mtime and \
 		stat_p1.st_size == stat_p2.st_size:
 		if VERBOSE:
-			print("file system objects: \n{} and \n{} are equal".format(file_name1, file_name2))
+			print("file system objects: \n{} and \n{} \nare equal".format(f1, f2))
 		return True
 
 		if VERBOSE:
-			print("file system objects: \n{} and \n{} are not equal".format(file_name1, file_name2))
+			print("file system objects: \n{} and \n{} \nare not equal".format(f1, f2))
 	return False
 
 
+"""
+	PosixPath: src_obj
+	PosixPath: dst_dir
+"""
 def find(src_obj, dst_dir):
-	for name in dst_dir.iterdir():
-		if src_obj == name:
+	for fname in dst_dir.iterdir():
+		if src_obj.name == fname.name:
 			return True
 	return False
 
@@ -70,9 +77,11 @@ def update_files(dst_pth, src_pth):
 		st_dst.st_size > st_src.st_size):
 			if not QUIET:
 				print("file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent))
+				cpy_files(Path(src_pth), Path(dst_pth))
 	else:
 		if not QUIET:
 			print("file {} is copied into {}".format(Path(src_pth).name, Path(str(dst_pth)).parent))
+			cpy_files(Path(dst_pth), Path(src_pth))
 
 
 #PosixPath dst_pth
@@ -86,9 +95,13 @@ def cpy_dirs(dst_pth, src_pth):
 #PosixPath dst_pth
 #PosizPath src_pth
 def cpy_files(dst_pth, src_pth):
-	dst_pth.touch(exist_ok=False)
+	if not dst_pth.exists():
+		dst_pth.touch(exist_ok=False)
 	wrt_str = Path(src_pth).read_bytes()
 	dst_pth.write_bytes(wrt_str)
+	from os import utime, stat
+	stat_src = stat(str(src_pth))
+	utime(str(dst_pth),times=(stat_src.st_atime, stat_src.st_mtime))
 	if VERBOSE:
 		print("datum from file {} were copied into file {}".format(src_pth, dst_pth))
 
@@ -122,7 +135,7 @@ def process_objs(dst_pth, src_pth, pth_list, is_cpy):
 #string src_pth
 def process_path(dst_pth, src_pth):
 	if Path(src_pth).exists() and Path(dst_pth).exists():
-			if Path(src_pth).is_dir():
+			if Path(src_pth).is_dir() and Path(dst_pth).is_dir():
 				dcmp = dircmp(dst_pth, src_pth)
 				is_cpy = True
 				if len(dcmp.right_only):
@@ -134,7 +147,7 @@ def process_path(dst_pth, src_pth):
 					process_objs(dst_pth, src_pth, dcmp.common, is_cpy)
 			elif Path(src_pth).is_file():
 				if Path(dst_pth).is_dir():
-					if not find(src_pth, dst_pth):
+					if not find(Path(src_pth), Path(dst_pth)):
 						cpy_objs(dst_pth, src_pth)
 					else:
 						for fname in Path(dst_pth).iterdir():
@@ -144,7 +157,10 @@ def process_path(dst_pth, src_pth):
 					if not is_eql_objs(src_pth, dst_pth):
 						update_files(src_pth, dst_pth)
 					else:
-						print("Nothing to synchronize. Everything is already synchronized")
+						if not QUIET:
+							print("Nothing to synchronize. Everything is already synchronized")
+			elif Path(src_pth).is_dir() and Path(dst_pth).is_file():
+				process_path(src_pth, dst_pth)
 
 
 """
@@ -219,7 +235,7 @@ def parse_commands():
 	if args.verbose:
 		VERBOSE = True
 		QUIET = False
-	elif args.quiet:
+	if args.quiet:
 		QUIET = True
 		VERBOSE = False
 
