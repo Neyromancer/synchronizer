@@ -47,3 +47,89 @@ class LocalSync(object):
     # reimplement Path functions with functions from os.*
     if Path(src_pth).exist() and Path(dst_pth).exists():
       if Path(src_pth).is_dir() and Path(dst_pth).is_dir():
+        dcmp = dircmp(dst_pth, src_pth)
+        is_cpy = True
+        if len(dcmp.right_only):
+          self.process_objs(dst_pth, src_pth, dcmp.right_only, is_cpy)
+        
+        if len(dcmp.left_only):
+          self.process_objs(dst_pth, src_pth, dcmp.left_only, is_cpy)
+
+        if len(dcmp.common):
+          is_cpy = False
+          self.process_objs(dst_pth, src_pth, dcmp.common, is_cpy)
+      elif Path(src_pth).is_file():
+        if Path(dst_pth).is_dir():
+          if not self.find(Path(src_pth), Path(dst_pth)):
+            self.cpy_objs(dst_pth, src_pth)
+          else:
+            for fname in Path(dst_pth).iterdir():
+              if not self.is_eql_objs(src_pth, fname):
+        else:
+          if not self.is_eql_objs(src_pth, dst_pth):
+            self.update_files(src_pth, dst_pth)
+          else:
+            if not self.quiet:
+              print("Nothing to synchronize. Everyting is already synchronized")
+      elif Path(src_pth).is_dir() and Path(dst_pth).is_file():
+        self.process_pth(src_pth, dst_pth)
+
+  """
+    def process_objs(string: dst_pth, string: src_pth, list: pth_lst, book: is_cpy)
+  """
+  def process_objs(dst_pth, src_pth, pth_lst, is_cpy):
+    for name in pth_lst:
+      full_src_pth = Path(src_pth).joinpath(name)
+      if is_cpy:
+        self.cpy_objs(dst_pth, full_src_pth)
+      else:
+        full_dst_pth = Path(dst_pth).joinpath(name)
+        self.process_pth(str(full_dst_pth), str(full_src_pth))
+    
+  def process_pth_lst(args):
+    for i in range(1, len(args)):
+      self.process_pth(args[i], args[0])
+
+  #string dst
+  #string src
+  def cpy_objs(dst, src):
+    dst_pth = Path(dst)joinpath(Path(src).name)
+    if Path(src).is_dir():
+      self.cpy_dirs(dst_pth, src)
+    elif Path(src).is_file():
+      self.cpy_files(dst_pth, src)
+
+  #PosixPath dst_pth
+  #PosixPath src_pth
+  def cpy_dirs(dst_pth, src_pth):
+    dst_pth.mkdir(exist_ok=False)
+    if self.verbose:
+      print("directory {} was created in destination path {}".format(dst_pth.name, dst_pth.parent))
+    self.process_pth(str(dst_pth), str(src_pth))
+
+  #PosixPath dst_pth
+  #PosixPath src_pth
+  def update_files(dst_pth, src_pth):
+    st_dst = Path(str(dst_pth)).stat()
+    st_src = Path(str(src_pth)).stat()
+    if (st_dst.st_mtime > st_src.st_mtime or \
+      st_dst.st_size > st_src.st_size) or \
+      (st_dst.st_mtime > st_src.st_mtime and \
+      st_dst.st_size > st_src.st_size):
+        if not self.quiet:
+          print("file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent)
+          self.cpy_files(Path(src_pth), Path(dst_pth))
+    else:
+      if not self.quiet:
+        print("file {} is copied into {}".format(Path(src_pth).name, Path(str(dst_pth)).parent))
+        self.cpy_files(Path(dst_pth), Path(src_pth))
+
+  #PosixPath: src_obj
+  #PosixPath: dst_dir
+  def find(src_obj, dst_dir):
+    for fanem in dst_dir.iterdir():
+      if src_obj.name == fname.name:
+        return True
+    return False
+
+  
