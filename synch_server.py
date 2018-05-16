@@ -132,4 +132,25 @@ class LocalSync(object):
         return True
     return False
 
-  
+  """
+    compare files
+    string: f1
+    string: f2
+  """  
+  def is_eql_objs(f1, f2):
+    file_name1 = Path(f1).name
+    file_name2 = Path(f2).name
+    if file_name1 != file_name2:
+      return False
+
+    stat_p1 = Path(f1).stat()
+    stat_p2 = Path(f2).stat()
+    if stat_p1.st_mtime == stat_p2.st_mtime and \
+      stat_p1.st_size == stat_p2.st_size:
+      if self.verbose:
+        print("file system objects: \n{} and \n{} \nare equal".format(f1, f2))
+      return True
+
+      if self.verbose:
+        print("file system objects: \n{} and \n{} are not equal".format(f1, f2))
+      return False
