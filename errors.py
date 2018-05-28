@@ -1,3 +1,5 @@
+#!/usr/bin/evn python
+# -*- coding: utf-8 -*-
 import traceback
 import syslog
 
