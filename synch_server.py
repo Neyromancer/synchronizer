@@ -8,7 +8,7 @@ class LocalSync(object):
   """
   class which implements local synchronization
   """
-	def __init__(self, **kwargs):
+  def __init__(self, **kwargs):
     self.verbose = kwargs.get("verbose")
     self.quiet = kwargs.get("quiet")
     self.delete = kwargs.get("delete")
@@ -65,6 +65,7 @@ class LocalSync(object):
           else:
             for fname in Path(dst_pth).iterdir():
               if not self.is_eql_objs(src_pth, fname):
+                self.update_files(src_pth, fname)
         else:
           if not self.is_eql_objs(src_pth, dst_pth):
             self.update_files(src_pth, dst_pth)
@@ -93,11 +94,25 @@ class LocalSync(object):
   #string dst
   #string src
   def cpy_objs(dst, src):
-    dst_pth = Path(dst)joinpath(Path(src).name)
+    dst_pth = Path(dst).joinpath(Path(src).name)
     if Path(src).is_dir():
       self.cpy_dirs(dst_pth, src)
     elif Path(src).is_file():
       self.cpy_files(dst_pth, src)
+
+  #PosixPath dst_pth
+  #PosixPath src_pth
+  def cpy_files(dst_pth, src_pth):
+    if not dst_pth.exists():
+      dst_pth.touch(exist_ok=False)
+    wrt_str = Path(src_pth).read_bytes()
+    dst_pth.write_bytes(wrt_str)
+
+    from os import utime, stat
+    stat_src = stat(str(src_pth))
+    utime(str(dst_pth), times=(stat_src.st_atime, stat_src.st_mtime))
+    if self.verbose:
+      print("datum from file {} were copied into file {}".format(src_pth, dst_pth))
 
   #PosixPath dst_pth
   #PosixPath src_pth
@@ -117,7 +132,7 @@ class LocalSync(object):
       (st_dst.st_mtime > st_src.st_mtime and \
       st_dst.st_size > st_src.st_size):
         if not self.quiet:
-          print("file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent)
+          print("file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent))
           self.cpy_files(Path(src_pth), Path(dst_pth))
     else:
       if not self.quiet:
