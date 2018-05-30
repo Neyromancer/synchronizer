@@ -9,8 +9,8 @@ class LocalSync(object):
   class which implements local synchronization
   """
   def __init__(self, **kwargs):
-    self.verbose = kwargs.get("verbose")
-    self.quiet = kwargs.get("quiet")
+    self.verbose = False
+    self.quiet = False
     self.delete = kwargs.get("delete")
     self.force = kwargs.get("force")
     self.no_recursive = kwargs.get("no_recursive")
@@ -22,6 +22,20 @@ class LocalSync(object):
     self.group = kwargs.get("group")
     self.backup = kwargs.get("backup")
     self.times = kwargs.get("times")
+
+  def set_verbose():
+    self.verbose = True
+    self.quiet = False
+
+  def set_quiet():
+    self.quiet = True
+    self.verbose = False
+
+  def is_verbose():
+    return self.verbose
+
+  def is_quiet():
+    return self.quiet
 
   # def process_dest_flg(self, list: args)
   def process_dest_flg(self, args):
@@ -70,7 +84,7 @@ class LocalSync(object):
           if not self.is_eql_objs(src_pth, dst_pth):
             self.update_files(src_pth, dst_pth)
           else:
-            if not self.quiet:
+            if not self.is_quiet():
               print("Nothing to synchronize. Everyting is already synchronized")
       elif Path(src_pth).is_dir() and Path(dst_pth).is_file():
         self.process_pth(src_pth, dst_pth)
@@ -111,14 +125,14 @@ class LocalSync(object):
     from os import utime, stat
     stat_src = stat(str(src_pth))
     utime(str(dst_pth), times=(stat_src.st_atime, stat_src.st_mtime))
-    if self.verbose:
+    if self.is_verbose():
       print("datum from file {} were copied into file {}".format(src_pth, dst_pth))
 
   #PosixPath dst_pth
   #PosixPath src_pth
   def cpy_dirs(dst_pth, src_pth):
     dst_pth.mkdir(exist_ok=False)
-    if self.verbose:
+    if self.is_verbose():
       print("directory {} was created in destination path {}".format(dst_pth.name, dst_pth.parent))
     self.process_pth(str(dst_pth), str(src_pth))
 
@@ -131,11 +145,11 @@ class LocalSync(object):
       st_dst.st_size > st_src.st_size) or \
       (st_dst.st_mtime > st_src.st_mtime and \
       st_dst.st_size > st_src.st_size):
-        if not self.quiet:
+        if not self.is_quiet():
           print("file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent))
           self.cpy_files(Path(src_pth), Path(dst_pth))
     else:
-      if not self.quiet:
+      if not self.is_quiet():
         print("file {} is copied into {}".format(Path(src_pth).name, Path(str(dst_pth)).parent))
         self.cpy_files(Path(dst_pth), Path(src_pth))
 
@@ -162,10 +176,10 @@ class LocalSync(object):
     stat_p2 = Path(f2).stat()
     if stat_p1.st_mtime == stat_p2.st_mtime and \
       stat_p1.st_size == stat_p2.st_size:
-      if self.verbose:
+      if self.is_verbose:
         print("file system objects: \n{} and \n{} \nare equal".format(f1, f2))
       return True
 
-      if self.verbose:
+      if self.is_verbose():
         print("file system objects: \n{} and \n{} are not equal".format(f1, f2))
       return False

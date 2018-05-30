@@ -56,11 +56,9 @@ def parse_commands():
 
 	localSync = LocalSync()
 	if args.verbose:
-		localSync.verbose = True
-		localSync.quiet = False
+    localSync.set_verbose()
 	if args.quiet:
-		localSync.quiet = True
-		localSync.verbose = False
+    localSync.set_quiet()
 
 	if args.src:
 		localSync.process_src_flg(args.src)
