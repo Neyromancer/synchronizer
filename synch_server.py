@@ -3,6 +3,7 @@
 
 import sys, os
 from pathlib import Path
+from error_handler import errClass
 
 class LocalSync(object):
   """
@@ -11,17 +12,18 @@ class LocalSync(object):
   def __init__(self, **kwargs):
     self.verbose = False
     self.quiet = False
-    self.delete = kwargs.get("delete")
-    self.force = kwargs.get("force")
-    self.no_recursive = kwargs.get("no_recursive")
-    self.progress = kwargs.get("progress")
-    self.links = kwargs.get("links")
-    self.transform_links = kwargs.get("transform_links")
-    self.hard_links = kwargs.get("hard_links")
-    self.perms = kwargs.get("perms")
-    self.group = kwargs.get("group")
-    self.backup = kwargs.get("backup")
-    self.times = kwargs.get("times")
+    self.delete = False
+    self.force = False
+    self.no_recursive = False
+    self.progress = False
+    self.links = False
+    self.transform_links = False
+    self.hard_links = False
+    self.perms = False
+    self.group = False
+    self.backup = False
+    self.times = False
+    self.err = errClass("SYNCHRONIZER", "synchronizer")
 
   def set_verbose():
     self.verbose = True
@@ -58,6 +60,7 @@ class LocalSync(object):
   #string dst_pth
   #string src_pth
   def process_pth(self, dst_pth, src_pth):
+    self.err.logOut("info", "Processing paths {} and {}".format(dst_pth, src_pth))
     # reimplement Path functions with functions from os.*
     if Path(src_pth).exist() and Path(dst_pth).exists():
       if Path(src_pth).is_dir() and Path(dst_pth).is_dir():
@@ -85,6 +88,7 @@ class LocalSync(object):
             self.update_files(src_pth, dst_pth)
           else:
             if not self.is_quiet():
+              self.err.logOut("info", "Nothing to synchronize. Everyting is already synchronized")
               print("Nothing to synchronize. Everyting is already synchronized")
       elif Path(src_pth).is_dir() and Path(dst_pth).is_file():
         self.process_pth(src_pth, dst_pth)
@@ -126,13 +130,15 @@ class LocalSync(object):
     stat_src = stat(str(src_pth))
     utime(str(dst_pth), times=(stat_src.st_atime, stat_src.st_mtime))
     if self.is_verbose():
-      print("datum from file {} were copied into file {}".format(src_pth, dst_pth))
+      self.err.logOut("info", "Datum from file {} were copied into file {}".format(src_pth, dst_pth))
+      print("Datum from file {} were copied into file {}".format(src_pth, dst_pth))
 
   #PosixPath dst_pth
   #PosixPath src_pth
   def cpy_dirs(dst_pth, src_pth):
     dst_pth.mkdir(exist_ok=False)
     if self.is_verbose():
+      self.err.logOut("info","Directory {} was created in destination path {}".format(dst_pth.name, dst_pth.parent))
       print("directory {} was created in destination path {}".format(dst_pth.name, dst_pth.parent))
     self.process_pth(str(dst_pth), str(src_pth))
 
@@ -146,10 +152,12 @@ class LocalSync(object):
       (st_dst.st_mtime > st_src.st_mtime and \
       st_dst.st_size > st_src.st_size):
         if not self.is_quiet():
+          self.err.logOut("info","file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent))
           print("file {} is copied into {}".format(Path(dst_pth).name, Path(str(src_pth)).parent))
           self.cpy_files(Path(src_pth), Path(dst_pth))
     else:
       if not self.is_quiet():
+        self.err.logOut("info","File {} is copied into {}".format(Path(src_pth).name, Path(str(dst_pth)).parent))
         print("file {} is copied into {}".format(Path(src_pth).name, Path(str(dst_pth)).parent))
         self.cpy_files(Path(dst_pth), Path(src_pth))
 
@@ -177,9 +185,11 @@ class LocalSync(object):
     if stat_p1.st_mtime == stat_p2.st_mtime and \
       stat_p1.st_size == stat_p2.st_size:
       if self.is_verbose:
+        self.err.logOut("info","File system objects: \n{} and \n{} \nare equal".format(f1, f2))
         print("file system objects: \n{} and \n{} \nare equal".format(f1, f2))
       return True
 
       if self.is_verbose():
+        self.err.logOut("info","File system objects: \n{} and \n{} are not equal".format(f1, f2))
         print("file system objects: \n{} and \n{} are not equal".format(f1, f2))
       return False

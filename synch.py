@@ -1,4 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import argparse, textwrap
+import error_handler
+import sys
 from pathlib import Path
 from filecmp import dircmp, cmp
 from synch_server import *
@@ -6,6 +10,8 @@ PROG_VERSION = 1.00
 
 def parse_commands():
 	global PROG_VERSION
+	#sys.setdefaultencoding("utf-8")
+
 	str_v = "v{:0.2f} \nThis is free software: you are free to change and redistribute it. \nThere is NO WARRANTY, to the extent permitted by law. \n\nWritten by Dmitry Kormulev.".format(PROG_VERSION)
 
 	parser = argparse.ArgumentParser(prog="synch", 
@@ -56,15 +62,16 @@ def parse_commands():
 
 	localSync = LocalSync()
 	if args.verbose:
-    localSync.set_verbose()
+		localSync.set_verbose()
 	if args.quiet:
-    localSync.set_quiet()
+		localSync.set_quiet()
 
 	if args.src:
 		localSync.process_src_flg(args.src)
 	elif args.dest:
 		LocalSync.process_dest_flg(args.dest)
 	elif args.synchcurrdir:
+		print("args is {}".format(args.synchcurrdir))
 		LocalSync.process_src_flg(args.synchcurrdir)
 
 def main():
