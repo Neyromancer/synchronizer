@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #import logger
+import inspect
 import os.path
 import os
 import re
@@ -43,6 +44,7 @@ def parse_flog():
 
   indx = str(tmp_str).rfind("usb")
   tmp_str = str(tmp_str)[indx + 1:]
+  print("index is {}".format(indx))
   while (indx != -1):
     indx = tmp_str.find('[')
     indx_end = tmp_str.find(']')
@@ -50,13 +52,16 @@ def parse_flog():
       break
 
     tmp = tmp_str[indx + 1:indx_end]
+    print("tmp is {}".format(tmp))
     if is_valid(tmp):
       return tmp
-      break
     tmp_str = tmp_str[indx_end + 1:]
-
   return None    
 
+"""
+  delete non alphanumeric
+  symbols from passed arg
+"""
 def dev_name_format(tmp_nm):
   res = tmp_nm
   for el in tmp_nm:
@@ -67,32 +72,66 @@ def dev_name_format(tmp_nm):
 
 """
  T > G > M > K
+ if ext1 > ext2 return 1
+ if ext1 == ext2 return 0
+ if ext1 < ext2 return -1
 """
-def cmp_ext(ext1, ext2)
-  if 
-
-def compare_dev(dev_dict1, dev_dict2):
+def cmp_ext(ext1, ext2):
+  if ext1 == ext2:
+    return 0
+  else:
+    """ 
+      ext2 anything else but T
+      equality checked at the step above
+    """
+    if ext1 == 'T':
+      return 1
+    elif ext1 == 'G':
+      if ext2 == 'T':
+        return -1
+      else: return 1
+    elif ext1 == 'M':
+      if ext2 == 'T' or \
+         ext2 == 'G':
+        return -1
+      else: return 1
+    else:
+      return -1
+"""
+ if dev_dcit1 > dev_dict2 return 1
+ if dev_dict1 == dev_dict2 return 0
+ if dev_dict1 < dev_dict2 return -1
+"""
+def cmp_dev(dev_dict1, dev_dict2):
   for dev_nm1 in dev_dict1.keys():
-      for dev_nm2 in dev_dict2.keys():
-        if len(dev_dict1[dev_nm1]) > \
-          len(dev_dict2[dev_nm2]):
-          print("first")
-          print(dev_dict1[dev_nm1])
-        elif len(dev_dict1[dev_nm1]) == \
-             len(dev_dict2[dev_nm2]):
-          
-          print("length is {}".format(len(dev_dict2[dev_nm2])))
-        else:
-          print("2nd")
-          print(dev_dict2[dev_nm2])
+    for dev_nm2 in dev_dict2.keys():
+      dev_vol1 = dev_dict1[dev_nm1]
+      dev_vol2 = dev_dict2[dev_nm2]
+      if len(dev_vol1) > \
+         len(dev_vol2):
+        print("first")
+        if not cmp_ext(dev_vol1[-1],dev_vol2[-1]) >= 0:
+          return 1
+        else: return -1
+      elif len(dev_vol1) == \
+           len(dev_vol2):
+        print("2nd")
+        return cmp_ext(dev_vol1[-1],dev_vol2[-1])      
+      else:
+        print("3d")
+        if cmp_ext(dev_vol1[-1], dev_vol2[-1]) <= 0:
+          return -1
+        else: return 1
 
-def dev_biggest_volume_dev(dev_volumes):
+def biggest_volume_dev(dev_volumes):
   tmp_dict1 = dict()
   tmp_dict2 = dict()
   for dev_nm in dev_volumes.keys():
     if tmp_dict1:
       tmp_dict2[dev_nm] = dev_volumes[dev_nm]
-      compare_dev(tmp_dict1, tmp_dict2)
+      if cmp_dev(tmp_dict1, tmp_dict2) >= 0:
+        return tmp_dict1
+      else: return tmp_dict2
     if not tmp_dict1:
       tmp_dict1[dev_nm] = dev_volumes[dev_nm]
 
@@ -103,6 +142,10 @@ def dev_biggest_volume_dev(dev_volumes):
   is what we are looking for
 """
 def find_actual_dev(tmp_dev):
+  func = inspect.currentframe().f_back.f_code
+  print("in {} ln is {} arg is {}".format(func.co_name,\
+                                          func.co_firstlineno,\
+                                          tmp_dev))
   try:
     ret = None
     if sys.version_info[0] < 3:
@@ -117,6 +160,9 @@ def find_actual_dev(tmp_dev):
     print("exception output {} and err_code {}" \
           .format(er.returncode,er.output)) 
   if ret.stdout:
+    print("in {} ln is {} arg is {}".format(func.co_name,\
+                                            func.co_firstlineno,\
+                                            tmp_dev))
     tmp_str = ret.stdout.decode("utf-8")
     indx = tmp_str.find(tmp_dev)
     if indx > 0:
@@ -133,21 +179,26 @@ def find_actual_dev(tmp_dev):
             if is_valid_volume(i):
               dev_volumes[name] = i
       if len(dev_volumes) > 1:
-        dev_biggest_volume_dev(dev_volumes)
+        dev_vol = biggest_volume_dev(dev_volumes)
+        print("dev_volume is {}".format(dev_vol))
+        return dev_vol
+  return None
 
 """
   build path to the disk we want to mount
 """
-def dsc_path(tmp_dev):
-  find_actual_dev(tmp_dev)
-
+def bld_dsc_path(tmp_dev):
+  dsc_nm = find_actual_dev(tmp_dev)
+  if dsc_nm:
+    print("disc_nm is {}".format(dsc_nm))
+    return ("/dev/" + dsc_nm)
+  return dsc_nm
 
 def get_dev():
   tmp_dev_nm = parse_flog()
-  print(tmp_dev_nm)
+  print("tmp dev name {}".format(tmp_dev_nm))
   if tmp_dev_nm:
-    dev = dsc_path(tmp_dev_nm)
-    return dev
+    return bld_dsc_path(tmp_dev_nm)
   return None
 
 def int_from_str(orig_str):
@@ -182,10 +233,12 @@ def check_flog():
 
   if ret.stdout:
     tmp = ret.stdout.decode("utf-8")
+    print("output is {}".format(tmp))
     dgt = int_from_str(tmp)
+    print("number of asking kern.log is {}".format(dgt))
     if dgt > 0:
       dev = get_dev()
-      print(dev)
+      print("device is {}".format(dev))
       #return True
   #return False
 
